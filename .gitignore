@@ -1,0 +1,15 @@
+# Versioned data is published as a GitHub Release asset, never ordinary Git history.
+*.db
+*.db-shm
+*.db-wal
+*.parquet
+*.csv
+*.tsv
+*.gz
+data/
+
+# Credentials and runtime output
+.secrets/
+.env
+__pycache__/
+*.log
