@@ -95,9 +95,11 @@ CREATE TABLE IF NOT EXISTS listings(
   url TEXT, user_id INTEGER, seller TEXT, category TEXT, slug TEXT,
   region TEXT, region_slug TEXT, condition TEXT, status TEXT,
   query TEXT, first_seen TEXT, last_seen TEXT, last_hash TEXT,
-  description TEXT, description_full TEXT, date_created TEXT, views TEXT);
+  description TEXT, description_full TEXT, date_created TEXT, views TEXT,
+  condition_inferred TEXT, normalized_product TEXT, suspicious TEXT,
+  source TEXT);
 CREATE TABLE IF NOT EXISTS price_history(
-  guid TEXT, seen_at TEXT, price INTEGER, hash TEXT);
+  guid TEXT, seen_at TEXT, price INTEGER, hash TEXT, source TEXT);
 CREATE TABLE IF NOT EXISTS runs(
   id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT, query TEXT,
   sort TEXT, pages INTEGER, new INTEGER,changed INTEGER);
@@ -126,10 +128,15 @@ def migrate(db):
     """Column migrations for existing DBs (CREATE TABLE IF NOT EXISTS
     never alters). Safe to run every startup."""
     cols = [c[1] for c in db.execute("PRAGMA table_info(listings)").fetchall()]
-    for col in ("description", "description_full", "date_created", "views"):
+    for col in ("description", "description_full", "date_created", "views",
+                "condition_inferred", "normalized_product", "suspicious", "source"):
         if col not in cols:
             db.execute(f"ALTER TABLE listings ADD COLUMN {col} TEXT")
             print(f"migrated: +{col}")
+    price_history_cols = [c[1] for c in db.execute("PRAGMA table_info(price_history)").fetchall()]
+    if "source" not in price_history_cols:
+        db.execute("ALTER TABLE price_history ADD COLUMN source TEXT")
+        print("migrated: price_history +source")
     fts_cols = [c[1] for c in db.execute("PRAGMA table_info(listings_fts)").fetchall()]
     if "description" not in fts_cols:
         db.execute("DROP TABLE IF EXISTS listings_fts")
@@ -224,26 +231,32 @@ def main():
                             (r["guid"],)).fetchone()
                         if row is None:
                             db.execute(
-                                "INSERT INTO listings VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                """INSERT INTO listings(
+                                  guid,title,price,price_title,url,user_id,seller,category,slug,
+                                  region,region_slug,condition,status,query,first_seen,last_seen,
+                                  last_hash,description,source
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                                 (r["guid"], r["title"], r["price"], r["price_title"], r["url"],
                                  r["user_id"], r["seller"], r["category"], r["slug"], r["region"],
                                  r["region_slug"], r["condition"], r["status"], r["query"],
-                                 now, now, r["hash"], r["description"], None, None, None))
-                            db.execute("INSERT INTO price_history VALUES(?,?,?,?)",
-                                       (r["guid"], now, r["price"], r["hash"]))
+                                 now, now, r["hash"], r["description"], "jiji-api-live"))
+                            db.execute(
+                                "INSERT INTO price_history(guid,seen_at,price,hash,source) VALUES(?,?,?,?,?)",
+                                (r["guid"], now, r["price"], r["hash"], "jiji-api-live"))
                             new += 1
                         elif row[1] != r["hash"]:
                             db.execute(
                                 "UPDATE listings SET title=?,price=?,price_title=?,url=?,user_id=?,"
                                 "seller=?,category=?,slug=?,region=?,region_slug=?,condition=?,status=?,"
-                                "query=?,last_seen=?,last_hash=?,description=? WHERE guid=?",
+                                "query=?,last_seen=?,last_hash=?,description=?,source=? WHERE guid=?",
                                 (r["title"], r["price"], r["price_title"], r["url"], r["user_id"],
                                  r["seller"], r["category"], r["slug"], r["region"], r["region_slug"],
                                  r["condition"], r["status"], r["query"], now, r["hash"],
-                                 r["description"], r["guid"]))
+                                 r["description"], "jiji-api-live", r["guid"]))
                             if row[0] != r["price"]:
-                                db.execute("INSERT INTO price_history VALUES(?,?,?,?)",
-                                           (r["guid"], now, r["price"], r["hash"]))
+                                db.execute(
+                                    "INSERT INTO price_history(guid,seen_at,price,hash,source) VALUES(?,?,?,?,?)",
+                                    (r["guid"], now, r["price"], r["hash"], "jiji-api-live"))
                             changed += 1
                         else:
                             db.execute("UPDATE listings SET last_seen=? WHERE guid=?",

@@ -1,0 +1,45 @@
+name: Jiji live delta
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:00 and 15:00 East Africa Time (UTC+3).
+    - cron: "0 0,12 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jiji-live-delta
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install collector dependencies
+        run: pip install blake3 duckdb
+      - name: Restore the rolling live database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data
+          gh release download live-latest --repo "$GITHUB_REPOSITORY" --pattern jiji-live-latest.db --dir data || true
+          if [ -f data/jiji-live-latest.db ]; then mv data/jiji-live-latest.db data/jiji.db; fi
+      - name: Collect category deltas
+        run: >-
+          python scripts/jiji_incremental.py
+          --slugs-file scripts/category_slugs.txt
+          --sort new --max-pages 1 --dmin 3 --dmax 8
+      - name: Publish rolling data assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp data/jiji.db data/jiji-live-latest.db
+          gh release create live-latest --repo "$GITHUB_REPOSITORY" --title "Rolling live data" --prerelease --notes "Twice-daily category delta snapshots." || true
+          gh release upload live-latest --repo "$GITHUB_REPOSITORY" --clobber data/jiji-live-latest.db "data/snapshot-$(date -u +%F).parquet"
