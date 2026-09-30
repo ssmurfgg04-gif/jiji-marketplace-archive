@@ -193,6 +193,7 @@ def main():
     if not jobs:
         raise SystemExit("nothing to do: pass --query and/or --slugs-file")
 
+    successful_jobs = 0
     for query, slug in jobs:
         tag = f"slug:{slug}" if slug and not query else query
         new = changed = rejected = 0
@@ -214,6 +215,7 @@ def main():
                 db.commit()
                 break
             ads = (((data.get("adverts_list") or {}).get("adverts")) or [])
+            successful_jobs += 1
             if not ads:
                 break
             pages += 1
@@ -301,6 +303,9 @@ def main():
         db.execute("UPDATE runs SET pages=?,new=?,changed=? WHERE id=?", (pages, new, changed, run))
         db.commit()
         print(f"slug={slug} query={query!r} pages={pages} new={new} changed={changed} price_rejected={rejected}")
+
+    if successful_jobs == 0:
+        raise SystemExit("no category request succeeded; refusing to publish a stale snapshot")
 
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     con = duckdb.connect()
