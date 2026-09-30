@@ -1,0 +1,53 @@
+name: Common Crawl archive delta
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:00 and 15:00 East Africa Time (UTC+3). This checks the archive;
+    # Common Crawl itself releases new crawls periodically, not twice daily.
+    - cron: "0 0,12 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: commoncrawl-archive-delta
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests duckdb
+      - name: Restore archive index cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p cc_index cc_manifest
+          gh release download commoncrawl-latest --repo "$GITHUB_REPOSITORY" --pattern jiji.co.ke.jsonl.gz --dir cc_index || true
+          if [ -f cc_index/jiji.co.ke.jsonl.gz ]; then gunzip cc_index/jiji.co.ke.jsonl.gz; fi
+          touch cc_index/jiji.co.ke.jsonl
+          sha256sum cc_index/jiji.co.ke.jsonl | cut -d' ' -f1 > /tmp/index-before
+      - name: Check newest Common Crawl indexes
+        run: python scripts/cc_index_collect.py --domain jiji.co.ke --latest 3
+      - name: Build latest archive manifest
+        run: python scripts/cc_layer0.py --domain jiji.co.ke --min-year 2025 --out cc_manifest/jiji.co.ke-recent.parquet
+      - name: Publish only when archive captures changed
+        id: changed
+        run: |
+          sha256sum cc_index/jiji.co.ke.jsonl | cut -d' ' -f1 > /tmp/index-after
+          if cmp -s /tmp/index-before /tmp/index-after; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Publish rolling archive assets
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gzip -9 -c cc_index/jiji.co.ke.jsonl > cc_index/jiji.co.ke.jsonl.gz
+          gh release create commoncrawl-latest --repo "$GITHUB_REPOSITORY" --title "Rolling Common Crawl index" --prerelease --notes "Latest Jiji Kenya captures indexed from Common Crawl. No requests are sent to Jiji." || true
+          gh release upload commoncrawl-latest --repo "$GITHUB_REPOSITORY" --clobber cc_index/jiji.co.ke.jsonl.gz cc_manifest/jiji.co.ke-recent.parquet

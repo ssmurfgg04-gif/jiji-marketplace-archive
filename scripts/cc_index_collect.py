@@ -7,12 +7,15 @@ JSONL cache (resumeable - already-fetched crawls are skipped).
 
 Output: cc_index/<domain>.jsonl  (raw CDXJ records with filename/offset/length)
 """
+import argparse
 import json, os, sys, time
 sys.path.insert(0, os.path.dirname(os.__file__))  # stdlib first (local inspect.py shadow)
 import inspect  # cache stdlib inspect in sys.modules BEFORE requests/typing lazy-imports it
 import requests
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cc_index")
+# Keep the raw cache at the repository root so cc_layer0.py and cc_fetch.py
+# consume the same state as this collector.
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "cc_index")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DOMAINS = ["jiji.co.ke", "jiji.ng", "jiji.co.tz", "jiji.co.ug", "jiji.co.za",
@@ -92,13 +95,21 @@ def collect(domain, colls):
         time.sleep(0.4)
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--domain", action="append", default=[],
+                    help="domain to collect; repeat for several domains")
+    ap.add_argument("--latest", type=int, default=0,
+                    help="only inspect the N newest Common Crawl indexes")
+    args = ap.parse_args()
     try:
         colls = [c["id"] for c in
                  requests.get("https://index.commoncrawl.org/collinfo.json", timeout=60).json()]
     except requests.RequestException as e:
         print(f"!! collinfo failed: {e}", file=sys.stderr)
         return 1
-    target = [sys.argv[1]] if len(sys.argv) > 1 else DOMAINS
+    if args.latest:
+        colls = colls[:args.latest]
+    target = args.domain or DOMAINS
     for d in target:
         print(f"== {d} ==", flush=True)
         try:
