@@ -11,6 +11,7 @@ BLAKE3 change detection: only changed records touch price_history.
 """
 import argparse
 import json
+import os
 import random
 import sqlite3
 import time
@@ -308,14 +309,16 @@ def main():
         raise SystemExit("no category request succeeded; refusing to publish a stale snapshot")
 
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    snapshot_dir = os.path.dirname(os.path.abspath(args.db)) or "."
+    snapshot_path = os.path.join(snapshot_dir, f"snapshot-{day}.parquet")
     con = duckdb.connect()
     con.execute(f"COPY (SELECT * FROM sqlite_scan('{args.db}', 'listings')) "
-                f"TO 'data/snapshot-{day}.parquet' (FORMAT PARQUET)")
-    n = con.execute(f"SELECT count(*) FROM 'data/snapshot-{day}.parquet'").fetchone()[0]
-    print(f"snapshot data/snapshot-{day}.parquet rows={n}")
+                f"TO '{snapshot_path}' (FORMAT PARQUET)")
+    n = con.execute(f"SELECT count(*) FROM '{snapshot_path}'").fetchone()[0]
+    print(f"snapshot {snapshot_path} rows={n}")
     print("cheapest 5 overall:")
     for t, p, u in con.execute(
-            f"SELECT title, price, url FROM 'data/snapshot-{day}.parquet' "
+            f"SELECT title, price, url FROM '{snapshot_path}' "
             f"WHERE price IS NOT NULL ORDER BY price LIMIT 5").fetchall():
         print(f"  {p:>8,} | {t[:70]} | {u}")
 
