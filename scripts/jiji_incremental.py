@@ -200,7 +200,7 @@ def main():
             "INSERT INTO runs(started_at,query,sort,pages,new,changed) VALUES(?,?,?,?,?,?)",
             (now, tag, args.sort, 0, 0, 0),
         ).lastrowid
-        page, pages = 1, 0
+        page, pages, total = 1, 0, 0
         while page <= args.max_pages:
             q = {"slug": slug, "init_page": "true",
                  "webp": "true", "sort": args.sort, "page": str(page)}

@@ -31,6 +31,10 @@ jobs:
           mkdir -p data
           gh release download live-latest --repo "$GITHUB_REPOSITORY" --pattern jiji-live-latest.db --dir data || true
           if [ -f data/jiji-live-latest.db ]; then mv data/jiji-live-latest.db data/jiji.db; fi
+          if [ ! -f data/jiji.db ]; then
+            gh release download v2026.09.29 --repo "$GITHUB_REPOSITORY" --pattern jiji.db --dir data
+          fi
+          test -s data/jiji.db
       - name: Collect category deltas
         run: >-
           python scripts/jiji_incremental.py
