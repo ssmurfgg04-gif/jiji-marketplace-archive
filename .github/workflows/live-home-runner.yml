@@ -24,11 +24,11 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Install collector dependencies
-        shell: pwsh
+        shell: powershell
         run: python -m pip install --disable-pip-version-check blake3 duckdb
 
       - name: Collect newest listings politely
-        shell: pwsh
+        shell: powershell
         run: |
           $db = Join-Path $env:JIJI_DATA_DIR 'jiji.db'
           if (-not (Test-Path $db)) { throw "Expected persistent database not found: $db" }
@@ -46,7 +46,7 @@ jobs:
           if (-not $ok) { throw 'Collector failed after three attempts; GitHub retains this failed run for manual rerun.' }
 
       - name: Package rolling data release
-        shell: pwsh
+        shell: powershell
         run: |
           $date = Get-Date -Format 'yyyy-MM-dd'
           $stage = Join-Path $env:RUNNER_TEMP 'jiji-release'
@@ -58,7 +58,7 @@ jobs:
             Set-Content (Join-Path $stage 'SHA256SUMS')
 
       - name: Update rolling GitHub Release
-        shell: pwsh
+        shell: powershell
         run: |
           $stage = Join-Path $env:RUNNER_TEMP 'jiji-release'
           $notes = "Daily home-runner live delta. Generated $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss K')."
