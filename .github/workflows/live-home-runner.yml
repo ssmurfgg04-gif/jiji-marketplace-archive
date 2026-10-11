@@ -51,7 +51,16 @@ jobs:
           $date = Get-Date -Format 'yyyy-MM-dd'
           $stage = Join-Path $env:RUNNER_TEMP 'jiji-release'
           New-Item -ItemType Directory -Force $stage | Out-Null
-          Compress-Archive -LiteralPath (Join-Path $env:JIJI_DATA_DIR 'jiji.db') -DestinationPath (Join-Path $stage 'jiji.db.zip') -Force
+          # jiji.db may still hold a WAL lock from the collector (2026-10-10 failure:
+          # Compress-Archive hit "being used by another process"). Snapshot it via the
+          # SQLite backup API into a cold copy, then zip the copy — never the live file.
+          $live = Join-Path $env:JIJI_DATA_DIR 'jiji.db'
+          $cold = Join-Path $stage 'jiji.db'
+          $env:JIJI_DB_LIVE = $live
+          $env:JIJI_DB_COLD = $cold
+          python -c "import os,sqlite3; s=sqlite3.connect(os.environ['JIJI_DB_LIVE']); d=sqlite3.connect(os.environ['JIJI_DB_COLD']); s.backup(d); d.execute('PRAGMA wal_checkpoint(TRUNCATE)'); d.close(); s.close()"
+          Compress-Archive -LiteralPath $cold -DestinationPath (Join-Path $stage 'jiji.db.zip') -Force
+          Remove-Item -LiteralPath $cold -Force
           Copy-Item (Join-Path $env:JIJI_DATA_DIR "snapshot-$date.parquet") (Join-Path $stage 'jiji-live-latest.parquet') -Force
           Get-FileHash (Join-Path $stage '*') -Algorithm SHA256 |
             ForEach-Object { "{0}  {1}" -f $_.Hash.ToLower(), $_.Path.Substring($stage.Length + 1) } |
