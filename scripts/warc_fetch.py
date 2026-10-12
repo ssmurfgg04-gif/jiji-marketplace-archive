@@ -117,6 +117,25 @@ def extract(html, url):
         m = RE_OG_CAT.search(html)
         if m:
             category = clean(m.group(1))
+    # 2024-layout fallback: ~35% of 2024 item pages carry no og:title meta
+    # (verified 2026-10-11 on 300 captures) but all have <title> of the form
+    # "{Title} in {Region} - {Category}[, {Seller}] | Jiji...". Reuse the
+    # already-parsed region/category to peel the title back out.
+    if not title and mt:
+        t2 = clean(mt.group(1)).split(" | Jiji")[0]
+        if region and (" in " + region) in t2:
+            t2 = t2.rsplit(" in " + region, 1)[0]
+        if category and t2.endswith(" - " + category):
+            t2 = t2[:-(len(category) + 3)]
+        # strip a trailing ", Seller Name" (max 3 words) — but ONLY when a
+        # " - Category" separator survived the region peel, i.e. the title-tag
+        # really has "{Title} - {Category}, {Seller}" shape. Otherwise a comma
+        # tail like ", Matress and Toilet Cleaning Contact" IS the title.
+        if " - " in t2:
+            t2 = re.sub(r",\s*([A-Za-z]+(?:\s+[A-Za-z.'-]+){0,2})$", "", t2).strip()
+        if len(t2) >= 4:
+            title = t2
+    m = RE_META_DESC.search(html)
     m = RE_META_DESC.search(html)
     meta_desc = clean(m.group(1)) if m else ""
     return {
