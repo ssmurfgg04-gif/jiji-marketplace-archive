@@ -1,0 +1,65 @@
+name: warc-drain
+# Sharded Common Crawl enrichment: 20 runners x ~5.4K item URLs each.
+# Trigger manually (Actions tab -> Run workflow). Each job fetches byte
+# ranges politely (4 workers, adaptive throttle) and uploads a sqlite part.
+# Merge locally: scripts/warc_merge.py (needs artifacts downloaded).
+# NOTE: runner scraping override approved by repo owner 2026-09-29; keep
+# concurrency/delays as-is, do not raise without re-approval (see PIPELINE.md).
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "Shard indexes, e.g. 0,1,2 or 'all'"
+        default: "all"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          if [ "${{ inputs.shards }}" = "all" ]; then
+            echo 'matrix=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]' >> $GITHUB_OUTPUT
+          else
+            echo "matrix=[${{ inputs.shards }}]" >> $GITHUB_OUTPUT
+          fi
+  drain:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: pad shard
+        run: echo "SHARD=$(printf '%02d' ${{ matrix.shard }})" >> $GITHUB_ENV
+      - name: fetch shard
+        run: |
+          python scripts/warc_fetch.py \
+            --shard-file data/warc_shards/shard_${{ env.SHARD }}.tsv \
+            --out-db /tmp/warc_part_${{ env.SHARD }}.db \
+            --workers 4 --delay 0.5 --batch 250 --max 6000
+      - uses: actions/upload-artifact@v4
+        # always(): a dead/timeout worker still banks its partial .db —
+        # resume = re-dispatch the same shard, committed batches persist.
+        if: always()
+        with:
+          name: warc-part-${{ matrix.shard }}
+          path: /tmp/warc_part_${{ env.SHARD }}.db
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: warc-failed-${{ matrix.shard }}
+          path: /tmp/warc_part_${{ env.SHARD }}.db.failed.tsv
+          retention-days: 7
+          if-no-files-found: ignore
