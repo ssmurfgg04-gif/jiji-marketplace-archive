@@ -101,6 +101,11 @@ jobs:
             python (Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py') --days 14
             python (Join-Path $env:JIJI_SCRIPT_DIR 'listing_risk.py')
           } else { Write-Host 'hygiene: not weekly slot, skipped' }
+      - name: Mark dead listings and normalize
+        shell: powershell
+        run: |
+          python (Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py') --days 14
+
       - name: Package rolling data release
 
         shell: powershell
@@ -117,7 +122,7 @@ jobs:
 
           # Compress-Archive hit "being used by another process"). Snapshot it via the
 
-          # SQLite backup API into a cold copy, then zip the copy — never the live file.
+          # SQLite backup API into a cold copy, then zip the copy â€” never the live file.
 
           $live = Join-Path $env:JIJI_DATA_DIR 'jiji.db'
 
