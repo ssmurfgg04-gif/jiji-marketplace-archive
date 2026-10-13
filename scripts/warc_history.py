@@ -41,8 +41,14 @@ def main():
                     help="fleet mode: write to this sqlite file instead of data/jiji.db")
     args = ap.parse_args()
 
-    import duckdb
-    con = duckdb.connect()
+    _con = {"db": None}
+
+    def _manifest():
+        # lazy: shard-file mode never touches the manifest (runners lack duckdb)
+        if _con["db"] is None:
+            import duckdb as _duckdb
+            _con["db"] = _duckdb.connect()
+        return _con["db"]
     if args.url_file:
         with open(args.url_file, encoding="utf-8") as f:
             urls = [l.strip().split("\t")[0] for l in f
@@ -61,7 +67,7 @@ def main():
     else:
         # history lives on OLD urls (dead listings predate live ones): pick car
         # URLs straight from the manifest by slug.
-        urls = [r[0] for r in con.execute(
+        urls = [r[0] for r in _manifest().execute(
             "SELECT url FROM 'cc_manifest/manifest.parquet' "
             "WHERE url LIKE '%/cars/%' AND url LIKE '%.html%' GROUP BY url HAVING COUNT(*)>= " +
             str(args.min_captures) + " LIMIT " + str(args.top_cars)).fetchall()]
@@ -107,7 +113,7 @@ def main():
         db.close()
         return
     for u in urls:
-        caps = con.execute(
+        caps = _manifest().execute(
             "SELECT capture_ts, warc_filename, warc_record_offset, warc_record_length "
             "FROM 'cc_manifest/manifest.parquet' WHERE url=? ORDER BY capture_ts", [u]).fetchall()
         for ts, fn, off, ln in caps:
