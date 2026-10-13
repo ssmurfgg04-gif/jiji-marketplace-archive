@@ -23,8 +23,9 @@ def main():
         cats.setdefault(cat, []).append(price)
     med = {c: statistics.median(v) for c, v in cats.items() if len(v) >= 10}
 
-    db.execute("DROP VIEW IF EXISTS listing_risk")
-    db.execute("DROP TABLE IF EXISTS listing_risk")
+    _old = db.execute("SELECT type FROM sqlite_master WHERE name='listing_risk'").fetchone()
+    if _old:
+        db.execute(f"DROP {_old[0].upper()} listing_risk")
     db.execute("""CREATE TABLE listing_risk(
       guid TEXT PRIMARY KEY, price_ratio REAL, views INTEGER,
       seller_hidden INTEGER, risk REAL)""")

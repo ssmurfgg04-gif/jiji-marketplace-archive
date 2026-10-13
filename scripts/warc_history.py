@@ -1,0 +1,97 @@
+"""Temporal depth backfill: fetch ALL captures for high-value URLs.
+
+The drain keeps only the latest capture per URL (INSERT OR REPLACE), so the
+~60k repeat captures in cc_manifest (8.5k urls with 3+, 2.8k with 5+) are
+unexploited history. This script replays them into warc_history(url,
+capture_ts, price, title, condition, seller, category, region, fetched_at) —
+append-only, PK (url, capture_ts). That is the time-history depth the live
+collector needs months to regrow.
+
+Usage:
+  python scripts/warc_history.py --top-cars 10 --min-captures 5
+  python scripts/warc_history.py --guid <guid>   # one listing, all captures
+Polite: 1 worker, ~1s delays (CC byte ranges, same etiquette as warc_fetch).
+"""
+import argparse
+import os
+import sys
+import time
+import sqlite3
+from datetime import datetime, timezone
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE)
+from warc_fetch import extract, fetch_body_v2, Throttle  # noqa: E402
+
+DB = os.path.join(os.path.dirname(BASE), "data", "jiji.db")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--top-cars", type=int, default=10)
+    ap.add_argument("--min-captures", type=int, default=5)
+    ap.add_argument("--guid", default=None)
+    ap.add_argument("--delay", type=float, default=1.0)
+    args = ap.parse_args()
+
+    import duckdb
+    con = duckdb.connect()
+    if args.guid:
+        db0 = sqlite3.connect(DB)
+        row = db0.execute("SELECT url FROM listings WHERE guid=?", (args.guid,)).fetchone()
+        if not row:
+            row = db0.execute("SELECT url FROM warc_item WHERE url LIKE ?", ("%" + args.guid + "%",)).fetchone()
+        db0.close()
+        if not row:
+            print("guid not found")
+            return
+        urls = [row[0]]
+    else:
+        # history lives on OLD urls (dead listings predate live ones): pick car
+        # URLs straight from the manifest by slug.
+        urls = [r[0] for r in con.execute(
+            "SELECT url FROM 'cc_manifest/manifest.parquet' "
+            "WHERE url LIKE '%/cars/%' AND url LIKE '%.html%' GROUP BY url HAVING COUNT(*)>= " +
+            str(args.min_captures) + " LIMIT " + str(args.top_cars)).fetchall()]
+        print(f"manifest car urls with {args.min_captures}+ captures: {len(urls)}")
+
+    db = sqlite3.connect(DB, timeout=120)
+    db.execute("""CREATE TABLE IF NOT EXISTS warc_history(
+      url TEXT, capture_ts TEXT, price INTEGER, title TEXT, condition TEXT,
+      seller TEXT, category TEXT, region TEXT, fetched_at TEXT,
+      PRIMARY KEY (url, capture_ts))""")
+    thr = Throttle(args.delay)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    n_new = 0
+    for u in urls:
+        caps = con.execute(
+            "SELECT capture_ts, warc_filename, warc_record_offset, warc_record_length "
+            "FROM 'cc_manifest/manifest.parquet' WHERE url=? ORDER BY capture_ts", [u]).fetchall()
+        for ts, fn, off, ln in caps:
+            if db.execute("SELECT 1 FROM warc_history WHERE url=? AND capture_ts=?",
+                          (u, ts)).fetchone():
+                continue
+            thr.wait()
+            st, body = fetch_body_v2(fn, off, ln, thr)
+            if st != "ok" or not body:
+                continue
+            try:
+                d = extract(body, u)
+            except Exception:
+                continue
+            db.execute("INSERT OR IGNORE INTO warc_history VALUES(?,?,?,?,?,?,?,?,?)",
+                       (u, ts, d.get("price"), d.get("title"), d.get("condition"),
+                        d.get("seller"), d.get("category"), d.get("region"), now))
+            db.commit()
+            n_new += 1
+        traj = db.execute("SELECT capture_ts, price FROM warc_history WHERE url=? ORDER BY capture_ts",
+                          (u,)).fetchall()
+        print(f"{u[-30:]}: {' -> '.join(f'{t[:7]}:{p}' for t, p in traj)}")
+    print(f"new history rows: {n_new}")
+    print("warc_history total:",
+          db.execute("SELECT COUNT(*) FROM warc_history").fetchone()[0])
+    db.close()
+
+
+if __name__ == "__main__":
+    main()

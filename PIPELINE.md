@@ -254,13 +254,27 @@ sample with the gaps listed above and below. Where we disagree with their
 figures, they are right and we are sampling noise. This dataset's value is
 longitudinal structure (prices + time + place for research), not census truth.
 
-## 2026 holdings (2026-10-11)
+## 2026 holdings (2026-10-13)
 
-Live `data/jiji.db`: **38,919 listings** (all first-seen in 2026, runs since
-09-27), 39,168 price rows but only **240 guids with 2+ observations** (trend
-detection is young), 111,422 warc_item rows, 12 daily snapshots 09-27→10-11
-(09-30, 10-01, 10-04 missing — the 10-10 home run failed on a locked DB,
-fixed in `live-home-runner.yml` via SQLite-backup snapshotting).
+Live `data/jiji.db`: **43,215 listings** (runs since 09-27), 43,488 price rows
+(~260 multi-obs guids — live history compounds slowly; the deep past comes
+from `warc_history` replays instead), 111,422 warc_item rows with **0 real
+blank titles** (28,612 recovered), 633 sellers scored, 1,848 listing-level
+flags, 26 land areas, daily snapshots 09-27→10-13 (09-30, 10-01, 10-04 missing
+— the 10-10 home run failed on a locked DB, fixed in `live-home-runner.yml`
+via SQLite-backup snapshotting).
+
+## Time-history depth (2026-10-13: reservoir tapped)
+
+Live `price_history` compounds slowly (43k rows, ~260 multi-obs) because
+listings churn faster than repricing. But the manifest holds ~60k repeat
+captures (8.5k urls × 3+, 2.8k × 5+) that the drain discarded via
+INSERT OR REPLACE. New `scripts/warc_history.py` replays any URL's full
+capture sequence into append-only `warc_history(url, capture_ts, ...)`:
+first 12 cars show real trajectories (e.g. 4.10M → 3.85M over 2020–2021)
+plus widespread sticky asking prices (flat for years — itself a finding).
+`--guid` mode does one listing. Scale-up: fleet job over all multi-capture
+item urls (category pages excluded — they carry no prices).
 
 ## Backlog (honest)
 
@@ -270,10 +284,13 @@ fixed in `live-home-runner.yml` via SQLite-backup snapshotting).
   login/about wrapper URLs, not listings. Third fallback layer + `--repair`
   mode documented in `backfill_titles.py`; extractor also fixed forward
   (og:title → `<title>` peel → slug derive).
-- `seller_risk` live (633 sellers) AND `listing_risk` live (1,730 flagged) —
+- `seller_risk` live (633 sellers) AND `listing_risk` live (1,848 flagged) —
   the listing-level table catches seller-hidden bait (Henry Phones pattern)
-  that seller aggregates structurally miss. Both recompute idempotently;
-  `live-home-runner.yml` refreshes them in its weekly hygiene slot
+  that seller aggregates structurally miss. `fraud_watch` (new) auto-flags
+  impossible-price + hidden-seller + 50-view rows as a scheduled query
+  (leases excluded — different market). Ingest-time enrichment
+  (`--enrich-new-max 30`, 2.5s apart) closes the seller gap at the source.
+  `live-home-runner.yml` refreshes risk tables in its weekly hygiene slot
   (`data_quality.py --days 14` for died_at + backfills).
 - `views_history` now records per-enrichment view counts (velocity =
   views-without-sale detection, our best trust signal).

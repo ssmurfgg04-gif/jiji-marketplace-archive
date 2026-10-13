@@ -113,6 +113,8 @@ def main():
     for guid, title, price, region, desc in rows:
         blob = f"{title or ''} {desc or ''}"
         if LEASE.search(blob):
+            db.execute("UPDATE listings SET land_unit='lease' WHERE guid=? "
+                       "AND (land_unit IS NULL OR land_unit='')", (guid,))
             continue
         sqm, _ = parse_sqm(blob)
         assumed = 0
