@@ -35,13 +35,14 @@ jobs:
         shard: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+      - name: Clear Python cache
+        run: find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install requests
-      - name: pad shard
-        run: echo "SHARD=$(printf '%02d' ${{ matrix.shard }})" >> $GITHUB_ENV
       - name: fetch history shard
+        shell: bash
         run: |
           python scripts/warc_history.py \
             --shard-file data/warc_shards/hist_${{ env.SHARD }}.tsv \
