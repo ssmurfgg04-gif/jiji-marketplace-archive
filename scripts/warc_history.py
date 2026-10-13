@@ -35,7 +35,7 @@ def main():
                     help="fleet mode: TSV with one URL per line; capture list "
                          "resolved from local manifest (home use)")
     ap.add_argument("--shard-file", default=None,
-                    help="fleet mode: TSV rows url,ts,file,off,len (manifest-free)")
+                    help="fleet mode: TSV rows url,ts,file,off,len (manifest-free)  # v2")
     ap.add_argument("--delay", type=float, default=1.0)
     ap.add_argument("--out-db", default=None,
                     help="fleet mode: write to this sqlite file instead of data/jiji.db")
