@@ -46,8 +46,11 @@ def main():
     def _manifest():
         # lazy: shard-file mode never touches the manifest (runners lack duckdb)
         if _con["db"] is None:
-            import duckdb as _duckdb
-            _con["db"] = _duckdb.connect()
+            try:
+                import duckdb as _duckdb
+                _con["db"] = _duckdb.connect()
+            except ImportError:
+                raise RuntimeError("duckdb not installed; use --shard-file mode or install duckdb")
         return _con["db"]
     if args.url_file:
         with open(args.url_file, encoding="utf-8") as f:
