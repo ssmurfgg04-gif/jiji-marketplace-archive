@@ -1,0 +1,31 @@
+name: fraud-watch-weekly
+# Standing radar: fraud_watch + risk refresh on the home runner (needs the
+# live DB, so self-hosted like the live update). Mondays 07:00 UTC.
+# Prints new alerts to the run log; full tables stay in data/jiji.db.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jiji-fraud-weekly
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: [self-hosted, windows, jiji-home]
+    timeout-minutes: 30
+    env:
+      JIJI_DATA_DIR: C:\Users\Jackb\Downloads\New folder (2)\data
+      JIJI_SCRIPT_DIR: C:\Users\Jackb\Downloads\New folder (2)\scripts
+    steps:
+      - name: Refresh risk tables and fraud watch
+        shell: powershell
+        run: |
+          python (Join-Path $env:JIJI_SCRIPT_DIR 'seller_risk.py') --min-listings 3
+          python (Join-Path $env:JIJI_SCRIPT_DIR 'listing_risk.py')
+          python (Join-Path $env:JIJI_SCRIPT_DIR 'fraud_watch.py')
+          python (Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py') --days 14

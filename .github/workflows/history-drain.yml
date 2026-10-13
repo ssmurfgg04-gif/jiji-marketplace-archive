@@ -1,0 +1,55 @@
+name: history-drain
+# Temporal-depth drain: 20 runners x ~42 multi-capture item URLs each.
+# Same polite pattern as warc-drain (byte ranges, adaptive throttle, Azure
+# egress under the 2026-09-29 owner override). Each job appends
+# (url, capture_ts) rows; merge locally into warc_history.
+# Trigger manually (Actions tab -> Run workflow). Merge locally when parts land.
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: "Shard indexes, e.g. 0,1,2 or 'all'"
+        default: "all"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          if [ "${{ inputs.shards }}" = "all" ]; then
+            echo 'matrix=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]' >> $GITHUB_OUTPUT
+          else
+            echo "matrix=[${{ inputs.shards }}]" >> $GITHUB_OUTPUT
+          fi
+  drain:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: pad shard
+        run: echo "SHARD=$(printf '%02d' ${{ matrix.shard }})" >> $GITHUB_ENV
+      - name: fetch history shard
+        run: |
+          python scripts/warc_history.py \
+            --shard-file data/warc_shards/hist_${{ env.SHARD }}.tsv \
+            --out-db /tmp/hist_part_${{ env.SHARD }}.db \
+            --delay 0.5
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hist-part-${{ matrix.shard }}
+          path: /tmp/hist_part_${{ env.SHARD }}.db
+          retention-days: 7
