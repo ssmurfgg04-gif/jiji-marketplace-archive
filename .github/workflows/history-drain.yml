@@ -35,6 +35,8 @@ jobs:
         shard: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true
       - name: Clear Python cache
         run: find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
       - uses: actions/setup-python@v5
