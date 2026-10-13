@@ -284,8 +284,9 @@ def main():
                     todo.append((p[0], p[1], p[2], int(p[3]), int(p[4])))
         print(f"shard: {len(todo)} urls", flush=True)
     else:
-        import duckdb
-        con = duckdb.connect()
+        # manifest mode: needs duckdb (runner lacks it; home runner only)
+        import duckdb as _duckdb
+        con = _duckdb.connect()
         # latest capture per item url (file/offset/length included)
         rows = con.execute(f"""SELECT url, capture_ts, warc_filename,
             warc_record_offset, warc_record_length FROM '{MANIFEST}'
