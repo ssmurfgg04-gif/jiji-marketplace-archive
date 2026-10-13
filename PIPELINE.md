@@ -202,6 +202,105 @@ daily 04:30, `--max 2000 --delay 0.8` (~8 weeks to drain, then idles). Log:
 - Live collector delta mode: `slug_state` totals; `sort=new` breaks after
   page 1 when total unchanged and zero new rows (page-1-always, deep-on-change).
 
+## Image pHash layer (2026-10-11)
+
+Byte hashes (WARC bodyhash, BLAKE3 records) never fire when the SAME photo is
+re-uploaded across listings (T490 title + T510 photos). `scripts/phash_images.py`
+closes it: 64-bit dHash (pure PIL, zero new deps), single polite worker,
+resume-safe `data/image_hashes.db` (kept OUT of `jiji.db` so the home-runner
+release zip can never lock it).
+
+```bash
+python scripts/phash_images.py --guid <guid> [--guid ...]   # spot-checks
+python scripts/phash_images.py --slug computers-and-laptops --sort price --max-pages 2
+```
+
+Reports exact-reuse groups (one photo, 2+ listings = stock/reused bait) plus
+near-dupes (hamming ≤5, tune tighter for dark product shots). Verified 2026-10-11:
+154 images / 40 cheapest listings hashed, pipeline correct, 0 reuse clusters in
+that slice — fraud catch needs fleet-scale sharding (shard by slugs file, same
+pattern as warc-drain). OCR badge-vs-title check deferred by owner decision.
+
+## External findings on this data (2026-10-11, cited briefly)
+
+An independent review of the mined snapshot reports (reproduced here with
+caveats, not re-verified end to end):
+
+- **Hedonic car index (strongest result):** make/model/year parsed for 5,760
+  cars (85 make-models, R² 0.92); like-for-like asking prices +13% (2020),
+  +28% (2021), +48% (2022), +65% (2023) vs 2019 — above the shilling's slide,
+  so FX pass-through + freight + duty/valuation changes are candidate drivers
+  (hypothesis, not finding). 2019 base noisy (n=211); 2024 unestimable (blank
+  titles). Depreciation within model ≈ -48% at age 10, ≈ -70% at age 15 vs a
+  5-year-old car.
+- **Price-cut warning (accepted):** among multi-capture rows ~80% show a
+  "change" with median +0.1% and ±hundreds-% tails — a cross-source parse
+  artifact (WB vs CC price for one guid), not repricing. New `price_disputed`
+  flag in `path_c_merge.py` marks min/max >3x with both sources present; do
+  not publish negotiation-margin claims until audited.
+- **Capture bias (accepted):** cars per capture year fall 2,041 → 0 (2024),
+  whole months missing — volume tracks crawls, not demand.
+
+Our own rerun (`scripts/market_tests.py`, mix-uncontrolled) corroborates the
+direction: phone medians 15.5K (2022) → 17.5K (2023, +13% vs ~+18% FX slide);
+2024+ drops are composition shifts, not deflation. Event-week volumes on mined
+`first_seen` are INVALID for event studies (first_seen = first capture, tracks
+crawls) — use live `date_created` instead.
+
+## A humility note
+
+Jiji publishes from complete internal numbers; we work from an archival
+sample with the gaps listed above and below. Where we disagree with their
+figures, they are right and we are sampling noise. This dataset's value is
+longitudinal structure (prices + time + place for research), not census truth.
+
+## 2026 holdings (2026-10-11)
+
+Live `data/jiji.db`: **38,919 listings** (all first-seen in 2026, runs since
+09-27), 39,168 price rows but only **240 guids with 2+ observations** (trend
+detection is young), 111,422 warc_item rows, 12 daily snapshots 09-27→10-11
+(09-30, 10-01, 10-04 missing — the 10-10 home run failed on a locked DB,
+fixed in `live-home-runner.yml` via SQLite-backup snapshotting).
+
+## Backlog (honest)
+
+- 2024 WARC blank titles: CLOSED 2026-10-12 (28,612 → 0 real listings).
+  Offline replay fixed 27,253; manifest shard re-fetch (+853, `warc_blank.db`
+  merged) + URL-slug fallback covered the rest. Final 342 blanks are
+  login/about wrapper URLs, not listings. Third fallback layer + `--repair`
+  mode documented in `backfill_titles.py`; extractor also fixed forward
+  (og:title → `<title>` peel → slug derive).
+- `seller_risk` live (633 sellers) AND `listing_risk` live (1,730 flagged) —
+  the listing-level table catches seller-hidden bait (Henry Phones pattern)
+  that seller aggregates structurally miss. Both recompute idempotently;
+  `live-home-runner.yml` refreshes them in its weekly hygiene slot
+  (`data_quality.py --days 14` for died_at + backfills).
+- `views_history` now records per-enrichment view counts (velocity =
+  views-without-sale detection, our best trust signal).
+- FX: `data/fx_rates.csv` now OFFICIAL World Bank annuals (PA.NUS.FCRF +
+  FP.CPI.TOTL 2019–2025; 2026 actual 129.78 via er-api) — the approx anchors
+  are retired (2024 was wrong: 129.0 vs actual 134.8). `market_tests.py`
+  prints CPI-deflated (2019 KES) medians. Monthly IMF join attempted 2026-10-12
+  (dataservices.imf.org unresolvable from here; exact query documented in
+  session memory) — annual is sufficient for yearly pass-through work.
+- Land: location-aware per-sqm engine live (`land_price.py` + `land_areas`
+  medians: Kilimani 109K → Eldoret 182/sqm); coordinates absent from schema,
+  text mapping carries it.
+- `attrs_json` (mileage/engine) exists only for 2025; live-side equivalent now
+  exists: `scripts/attrs_extract.py` back-extracts mileage_km/engine_cc (cars)
+  and land_unit (per-acre/per-plot/per-sqm) from text into `listings`, wired
+  into `item.py` enrich going forward. Measured 2026-10-11: 502 engines, 83
+  mileages (sellers write "genuine mileage" without numbers — text ceiling),
+  677 land units.
+- Jobs-as-labour-signal measured 2026-10-11 and parked: 302 job rows, ~0 with
+  any pay figure in price OR text. No signal exists to extract.
+- Land/house-sale per-plot vs per-acre unit: DONE via land_unit above.
+- Nigeria/Ghana/Tanzania rows (~4k) too few to use — kept for FX comparison only.
+- `seller_risk` live (633 sellers, 130 flagged 2026-10-11) with known blind
+  spots: sellerless rows invisible; heterogeneous categories inflate scores.
+  Henry Phones never appears (hidden seller) — impossible-price + hidden-seller
+  is itself the top-risk tier.
+
 ## Ops
 
 - Secrets: `.secrets/github_token` (gitignored, owner-only ACL). Read with

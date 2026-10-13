@@ -4,7 +4,17 @@ import gzip, os, sys
 BASE = "C:\\Users\\Jackb\\Downloads\\New folder (2)"
 ART_DIR = sys.argv[1] if len(sys.argv) > 1 else os.path.join(BASE, "cc_worker_rows")
 OUT = os.path.join(BASE, "cc_rows.tsv")
-FIELDNAMES = ["guid", "title", "price", "capture_ts", "source", "country", "bodyhash"]
+FIELDNAMES = ["guid", "title", "price", "capture_ts", "source", "country", "bodyhash", "url", "category_name"]
+N_COLS = len(FIELDNAMES)
+
+def split_row(line):
+    parts = line.split("\t")
+    if len(parts) < 7:
+        return None
+    # pad pre-url-era 7-col rows so old + new files merge cleanly
+    if len(parts) < N_COLS:
+        parts = parts + [""] * (N_COLS - len(parts))
+    return parts[:N_COLS]
 
 def main():
     seen = set()
@@ -13,8 +23,8 @@ def main():
             for line in f:
                 if line.startswith("#"):
                     continue
-                parts = line.rstrip("\n").split("\t")
-                if len(parts) >= 7 and parts[6]:
+                parts = split_row(line.rstrip("\n"))
+                if parts and parts[6]:
                     seen.add(parts[6])
     before = len(seen)
     added = 0
@@ -28,14 +38,14 @@ def main():
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    parts = line.split("\t")
-                    if len(parts) < 7:
+                    parts = split_row(line)
+                    if not parts:
                         continue
                     h = parts[6]
                     if h in seen:
                         continue
                     seen.add(h)
-                    out.write(line + "\n")
+                    out.write("\t".join(parts) + "\n")
                     added += 1
             print(f"  {fn}: cumulative added {added}", flush=True)
     print(f"done: before={before} added={added} total={len(seen)}")

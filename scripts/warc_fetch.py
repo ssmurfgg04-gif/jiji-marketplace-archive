@@ -135,7 +135,16 @@ def extract(html, url):
             t2 = re.sub(r",\s*([A-Za-z]+(?:\s+[A-Za-z.'-]+){0,2})$", "", t2).strip()
         if len(t2) >= 4:
             title = t2
-    m = RE_META_DESC.search(html)
+    # last resort: bot-wall/JS-shell pages carry no usable title tag, but the
+    # URL slug is the title ("1-in-4-out-hdmi-splitter-<guid>.html"). Strip the
+    # trailing guid token + extension and de-slugify.
+    if not title and url:
+        seg = url.split("?")[0].rstrip("/").rsplit("/", 1)[-1]
+        seg = re.sub(r"\.html?$", "", seg)
+        seg = re.sub(r"[-_][A-Za-z0-9]{18,}$", "", seg)
+        slug = re.sub(r"[-_]+", " ", seg).strip()
+        if len(slug) >= 10 and re.search(r"[A-Za-z]", slug):
+            title = slug
     m = RE_META_DESC.search(html)
     meta_desc = clean(m.group(1)) if m else ""
     return {

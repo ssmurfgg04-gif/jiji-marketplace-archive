@@ -75,12 +75,13 @@ def json_rows(payload, keys):
             if isinstance(ad, dict) and ad.get("guid"):
                 row = dict(keys)
                 row.update({"guid": ad.get("guid"), "title": ad.get("title", ""),
-                            "price": (ad.get("price_obj") or {}).get("value")},
+                            "price": (ad.get("price_obj") or {}).get("value"),
+                            "category_name": ad.get("category_name", "")},
                            )
                 rows.append(row)
     return rows
 
-FIELDNAMES = ["guid", "title", "price", "capture_ts", "source", "country", "bodyhash"]
+FIELDNAMES = ["guid", "title", "price", "capture_ts", "source", "country", "bodyhash", "url", "category_name"]
 
 def main():
     # load index metadata (url, crawl ts, country) by bodyhash from cache
@@ -144,7 +145,7 @@ def main():
             except Exception:
                 pass
         text = payload.decode("utf-8", "replace")
-        keys = {"capture_ts": meta["ts"], "country": meta["country"]}
+        keys = {"capture_ts": meta["ts"], "country": meta["country"], "url": meta["url"]}
         if re.search(r'"advert"\s*[:{]|"adverts_list"\s*[:{]', text):
             rows = json_rows(text, keys | {"source": "cc_api"})
         else:

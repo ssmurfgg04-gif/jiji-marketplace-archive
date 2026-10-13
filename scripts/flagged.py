@@ -48,6 +48,30 @@ def like_clause(patterns):
     return where, params
 
 
+# condition inference from seller's own words (fills the 59% condition gap).
+# Ordered: first match wins. Covers tech + vehicles + property + pets.
+CONDITION_RULES = [
+    ("brand new", ["brand new", "brandnew", "new in box", "sealed box", "0 km", "0km"]),
+    ("newly built", ["newly built", "new house", "new apartment"]),
+    ("refurbished", ["refurbished", "refurb", "reconditioned", "ex-uk", "ex uk", "ex japan", "ex-japan"]),
+    ("used - good", ["in good condition", "working perfectly", "well maintained",
+                     "accident free", "accident-free", "genuine mileage"]),
+    ("used", ["used", "second hand", "pre-owned", "preowned", "uk used",
+              "already used", "slightly used"]),
+    ("needs repair", ["needs repair", "needs fixing", "needs replacement",
+                      "for parts", "for spares", "as is", "as-is", "dead",
+                      "not working", "accidented", "written off", "grounded"]),
+]
+
+
+def infer_condition(text):
+    low = (text or "").lower()
+    for label, keys in CONDITION_RULES:
+        if any(k in low for k in keys):
+            return label
+    return ""
+
+
 def snippet(text, patterns):
     low = (text or "").lower()
     for p in patterns:

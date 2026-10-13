@@ -10,7 +10,7 @@ UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) research-archive-miner/1.0"
 FIELDS = ["guid","title","price","date_created","date_moderated","date_edited",
           "seller_id","seller_name","phone","category_id","category_name",
           "count_views","fav_count","adverts_count","feedback_count","rating",
-          "boost_badge","capture_ts","image_urls","source","country"]
+          "boost_badge","capture_ts","image_urls","source","country","web_url"]
 DOMAINS = [("jiji.co.ke","ke"), ("jiji.ng","ng"), ("jiji.co.tz","tz"), ("jiji.co.ug","ug"), ("jiji.co.za","za")]
 WORKERS = int(os.environ.get("MINER_WORKERS", "2"))
 SLEEP = float(os.environ.get("MINER_SLEEP", "0.5"))
@@ -66,7 +66,8 @@ def extract_item(j, ts, src, country):
             "feedback_count": s.get("feedback_count"),
             "rating": s.get("rating"),
             "boost_badge": (adv.get("badge_info", {}) or {}).get("label", ""),
-            "capture_ts": ts, "image_urls": ";".join(imgs), "source": src, "country": country}
+            "capture_ts": ts, "image_urls": ";".join(imgs), "source": src, "country": country,
+            "web_url": web}
 
 def extract_listing(j, ts, src, country):
     rows = []

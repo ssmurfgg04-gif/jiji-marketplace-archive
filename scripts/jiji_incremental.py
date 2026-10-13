@@ -2,7 +2,7 @@
 
 Usage:
   python scripts/jiji_incremental.py --query "ddr3 desktop ram" --query "ddr4 desktop ram" \\
-      --slug computer-hardware --sort new --max-pages 3
+      --slug computers-and-laptops --sort new --max-pages 3
   python scripts/jiji_incremental.py --query "ddr3 desktop ram" --sort price --max-pages 2
 
 One worker, random 3-8s delays, retries with backoff. Stores SQLite
@@ -53,6 +53,19 @@ def condition_of(ad):
     return None
 
 
+def _clean_str(s):
+    import re as _re
+    s = _re.sub(r"\s+", " ", str(s or "")).strip()
+    return s
+
+
+def norm_region(s):
+    # "Industrial Area (Nairobi)" vs "Industrial Area Nairobi" -> one bucket
+    s = _clean_str(s).replace("(", "").replace(")", "")
+    import re as _re
+    return _re.sub(r"\s+", " ", s).strip()
+
+
 def norm(ad, query):
     raw = (ad.get("price_obj") or {}).get("value")
     try:
@@ -67,16 +80,16 @@ def norm(ad, query):
         return None
     rec = {
         "guid": ad.get("guid") or str(ad.get("id")),
-        "title": ad.get("title") or "",
+        "title": _clean_str(ad.get("title")),
         "price": price,
         "price_title": ad.get("price_title") or "",
         "url": "https://jiji.co.ke" + (ad.get("url") or "").split("?")[0],
         "user_id": ad.get("user_id"),
-        "seller": (ad.get("seller") or {}).get("user_name"),
-        "category": ad.get("category_name"),
-        "slug": ad.get("category_slug"),
-        "region": ad.get("region_name"),
-        "region_slug": ad.get("region_slug"),
+        "seller": _clean_str((ad.get("seller") or {}).get("user_name")),
+        "category": _clean_str(ad.get("category_name")),
+        "slug": _clean_str(ad.get("category_slug")),
+        "region": norm_region(ad.get("region_name")),
+        "region_slug": _clean_str(ad.get("region_slug")),
         "condition": condition_of(ad),
         "status": ad.get("status"),
         "query": query,
@@ -96,11 +109,9 @@ CREATE TABLE IF NOT EXISTS listings(
   url TEXT, user_id INTEGER, seller TEXT, category TEXT, slug TEXT,
   region TEXT, region_slug TEXT, condition TEXT, status TEXT,
   query TEXT, first_seen TEXT, last_seen TEXT, last_hash TEXT,
-  description TEXT, description_full TEXT, date_created TEXT, views TEXT,
-  condition_inferred TEXT, normalized_product TEXT, suspicious TEXT,
-  source TEXT);
+  description TEXT, description_full TEXT, date_created TEXT, views TEXT);
 CREATE TABLE IF NOT EXISTS price_history(
-  guid TEXT, seen_at TEXT, price INTEGER, hash TEXT, source TEXT);
+  guid TEXT, seen_at TEXT, price INTEGER, hash TEXT);
 CREATE TABLE IF NOT EXISTS runs(
   id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT, query TEXT,
   sort TEXT, pages INTEGER, new INTEGER,changed INTEGER);
@@ -129,15 +140,10 @@ def migrate(db):
     """Column migrations for existing DBs (CREATE TABLE IF NOT EXISTS
     never alters). Safe to run every startup."""
     cols = [c[1] for c in db.execute("PRAGMA table_info(listings)").fetchall()]
-    for col in ("description", "description_full", "date_created", "views",
-                "condition_inferred", "normalized_product", "suspicious", "source"):
+    for col in ("description", "description_full", "date_created", "views"):
         if col not in cols:
             db.execute(f"ALTER TABLE listings ADD COLUMN {col} TEXT")
             print(f"migrated: +{col}")
-    price_history_cols = [c[1] for c in db.execute("PRAGMA table_info(price_history)").fetchall()]
-    if "source" not in price_history_cols:
-        db.execute("ALTER TABLE price_history ADD COLUMN source TEXT")
-        print("migrated: price_history +source")
     fts_cols = [c[1] for c in db.execute("PRAGMA table_info(listings_fts)").fetchall()]
     if "description" not in fts_cols:
         db.execute("DROP TABLE IF EXISTS listings_fts")
@@ -166,7 +172,7 @@ def main():
     ap.add_argument("--query", action="append", default=[])
     ap.add_argument("--slugs-file",
                     help="file with one category slug per line; runs --query '' per slug for deep category mining")
-    ap.add_argument("--slug", default="computer-hardware")
+    ap.add_argument("--slug", default="computers-and-laptops")
     ap.add_argument("--sort", default="new", choices=["new", "price", "rel"])
     ap.add_argument("--max-pages", type=int, default=3)
     ap.add_argument("--db", default="data/jiji.db")
@@ -194,7 +200,6 @@ def main():
     if not jobs:
         raise SystemExit("nothing to do: pass --query and/or --slugs-file")
 
-    successful_jobs = 0
     for query, slug in jobs:
         tag = f"slug:{slug}" if slug and not query else query
         new = changed = rejected = 0
@@ -202,7 +207,7 @@ def main():
             "INSERT INTO runs(started_at,query,sort,pages,new,changed) VALUES(?,?,?,?,?,?)",
             (now, tag, args.sort, 0, 0, 0),
         ).lastrowid
-        page, pages, total = 1, 0, 0
+        page, pages = 1, 0
         while page <= args.max_pages:
             q = {"slug": slug, "init_page": "true",
                  "webp": "true", "sort": args.sort, "page": str(page)}
@@ -216,7 +221,6 @@ def main():
                 db.commit()
                 break
             ads = (((data.get("adverts_list") or {}).get("adverts")) or [])
-            successful_jobs += 1
             if not ads:
                 break
             pages += 1
@@ -242,7 +246,7 @@ def main():
                                 (r["guid"], r["title"], r["price"], r["price_title"], r["url"],
                                  r["user_id"], r["seller"], r["category"], r["slug"], r["region"],
                                  r["region_slug"], r["condition"], r["status"], r["query"],
-                                 now, now, r["hash"], r["description"], "jiji-api-live"))
+                                  now, now, r["hash"], r["description"], "jiji-api-live"))
                             db.execute(
                                 "INSERT INTO price_history(guid,seen_at,price,hash,source) VALUES(?,?,?,?,?)",
                                 (r["guid"], now, r["price"], r["hash"], "jiji-api-live"))
@@ -254,8 +258,8 @@ def main():
                                 "query=?,last_seen=?,last_hash=?,description=?,source=? WHERE guid=?",
                                 (r["title"], r["price"], r["price_title"], r["url"], r["user_id"],
                                  r["seller"], r["category"], r["slug"], r["region"], r["region_slug"],
-                                 r["condition"], r["status"], r["query"], now, r["hash"],
-                                 r["description"], "jiji-api-live", r["guid"]))
+                                  r["condition"], r["status"], r["query"], now, r["hash"],
+                                  r["description"], "jiji-api-live", r["guid"]))
                             if row[0] != r["price"]:
                                 db.execute(
                                     "INSERT INTO price_history(guid,seen_at,price,hash,source) VALUES(?,?,?,?,?)",
@@ -304,9 +308,6 @@ def main():
         db.execute("UPDATE runs SET pages=?,new=?,changed=? WHERE id=?", (pages, new, changed, run))
         db.commit()
         print(f"slug={slug} query={query!r} pages={pages} new={new} changed={changed} price_rejected={rejected}")
-
-    if successful_jobs == 0:
-        raise SystemExit("no category request succeeded; refusing to publish a stale snapshot")
 
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     snapshot_dir = os.path.dirname(os.path.abspath(args.db)) or "."

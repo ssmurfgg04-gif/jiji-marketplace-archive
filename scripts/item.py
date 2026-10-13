@@ -48,10 +48,37 @@ def enrich(db, guid):
             cond = attr.get("value") or ""
             break
     seller = s.get("name", "") or ""
+    if not cond:
+        try:
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+            from flagged import infer_condition
+            cond = infer_condition(f"{adv.get('title', '')} {desc}")
+        except Exception:
+            cond = ""
+    # structured attrs backfill (cars: mileage/engine, property: unit)
+    _mileage = _engine = _lunit = None
+    try:
+        import sys as _sys2, os as _os2
+        _sys2.path.insert(0, _os2.path.dirname(_os2.path.abspath(__file__)))
+        from attrs_extract import car_attrs, land_unit
+        blob = f"{adv.get('title', '')} {desc}"
+        _mileage, _engine = car_attrs(blob)
+        _lunit = land_unit(blob)
+    except Exception:
+        pass
     db.execute("UPDATE listings SET description_full=?, date_created=?, views=?, "
                "condition=COALESCE(NULLIF(condition,''),?), "
-               "seller=COALESCE(NULLIF(seller,''),?) WHERE guid=?",
-               (desc, created, views, cond or None, seller or None, guid))
+               "seller=COALESCE(NULLIF(seller,''),?), "
+               "mileage_km=COALESCE(mileage_km,?), engine_cc=COALESCE(engine_cc,?), "
+               "land_unit=COALESCE(NULLIF(land_unit,''),?) WHERE guid=?",
+               (desc, created, views, cond or None, seller or None,
+                _mileage, _engine, _lunit or None, guid))
+    if views and str(views).isdigit():
+        from datetime import datetime, timezone
+        db.execute("INSERT OR IGNORE INTO views_history VALUES(?,?,?)",
+                   (guid, datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    int(views)))
     db.commit()
     return True
 
@@ -70,6 +97,14 @@ def main():
     db = sqlite3.connect(DB, timeout=120, isolation_level=None)
     db.execute("PRAGMA journal_mode=WAL;")
     db.execute("PRAGMA busy_timeout=120000;")
+    _cols = [c[1] for c in db.execute("PRAGMA table_info(listings)").fetchall()]
+    for _col in ("description", "description_full", "date_created", "views",
+                 "mileage_km", "engine_cc", "land_unit"):
+        if _col not in _cols:
+            db.execute(f"ALTER TABLE listings ADD COLUMN {_col} TEXT")
+    db.execute("""CREATE TABLE IF NOT EXISTS views_history(
+      guid TEXT, seen_at TEXT, views INTEGER,
+      PRIMARY KEY (guid, seen_at))""")
 
     if args.flagged:
         sys.path.insert(0, BASE + "/scripts")
@@ -86,7 +121,11 @@ def main():
     elif args.missing:
         tech = ("(lower(category) like '%computer%' or lower(category) like '%laptop%' "
                 "or lower(category) like '%phone%' or lower(category) like '%tablet%' "
-                "or lower(category) like '%car%' or lower(category) like '%vehicle%')")
+                "or lower(category) like '%car%' or lower(category) like '%vehicle%' "
+                "or lower(category) like '%motor%' or lower(category) like '%house%' "
+                "or lower(category) like '%land%' or lower(category) like '%rent%' "
+                "or lower(category) like '%propert%' or lower(category) like '%pet%' "
+                "or lower(category) like '%dog%' or lower(category) like '%cat%')")
         guids = [r[0] for r in db.execute(
             f"SELECT guid FROM listings WHERE {tech} AND "
             "description_full IS NULL AND "
