@@ -1,5 +1,5 @@
 name: history-drain
-# Temporal-depth drain: 20 runners x ~42 multi-capture item URLs each.
+# Temporal-depth drain: 20 runners x multi-capture item URLs each.
 # Same polite pattern as warc-drain (byte ranges, adaptive throttle, Azure
 # egress under the 2026-09-29 owner override). Each job appends
 # (url, capture_ts) rows; merge locally into warc_history.
@@ -35,14 +35,12 @@ jobs:
         shard: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          clean: true
-      - name: Clear Python cache
-        run: find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install requests
+      - run: pip install --disable-pip-version-check requests duckdb
+      - name: pad shard
+        run: echo "SHARD=$(printf '%02d' ${{ matrix.shard }})" >> $GITHUB_ENV
       - name: fetch history shard
         shell: bash
         run: |
