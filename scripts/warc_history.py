@@ -69,8 +69,11 @@ def main():
         urls = [row[0]]
     else:
         # history lives on OLD urls (dead listings predate live ones): pick car
-        # URLs straight from the manifest by slug.
-        urls = [r[0] for r in _manifest().execute(
+        # URLs straight from the manifest by slug. Skipped entirely in
+        # --shard-file mode (fleet runners have no manifest).
+        urls = []
+        if not args.shard_file:
+            urls = [r[0] for r in _manifest().execute(
             "SELECT url FROM 'cc_manifest/manifest.parquet' "
             "WHERE url LIKE '%/cars/%' AND url LIKE '%.html%' GROUP BY url HAVING COUNT(*)>= " +
             str(args.min_captures) + " LIMIT " + str(args.top_cars)).fetchall()]
