@@ -10,6 +10,9 @@ on:
       shards:
         description: "Shard indexes, e.g. 0,1,2 or 'all'"
         default: "all"
+      prefix:
+        description: "Shard filename prefix (hist_ or hist2_)"
+        default: "hist_"
 
 jobs:
   setup:
@@ -45,7 +48,7 @@ jobs:
         shell: bash
         run: |
           python scripts/warc_history.py \
-            --shard-file data/warc_shards/hist_${{ env.SHARD }}.tsv \
+            --shard-file data/warc_shards/${{ inputs.prefix }}${{ env.SHARD }}.tsv \
             --out-db /tmp/hist_part_${{ env.SHARD }}.db \
             --delay 0.5
       - uses: actions/upload-artifact@v4
