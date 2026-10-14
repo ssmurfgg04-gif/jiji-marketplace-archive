@@ -254,15 +254,15 @@ sample with the gaps listed above and below. Where we disagree with their
 figures, they are right and we are sampling noise. This dataset's value is
 longitudinal structure (prices + time + place for research), not census truth.
 
-## 2026 holdings (2026-10-13)
+## 2026 holdings (2026-10-14)
 
-Live `data/jiji.db`: **43,215 listings** (runs since 09-27), 43,488 price rows
-(~260 multi-obs guids — live history compounds slowly; the deep past comes
-from `warc_history` replays instead), 111,422 warc_item rows with **0 real
-blank titles** (28,612 recovered), 633 sellers scored, 1,848 listing-level
-flags, 26 land areas, daily snapshots 09-27→10-13 (09-30, 10-01, 10-04 missing
-— the 10-10 home run failed on a locked DB, fixed in `live-home-runner.yml`
-via SQLite-backup snapshotting).
+Live `data/jiji.db`: **43,826 listings** (runs since 09-27), 701,119-row mined
+snapshot (`jiji_mined_dataset_20261014_100824` + KE-only slice — first with
+`url`/`unverified`/`price_disputed`), 111,422 warc_item rows with **0 real
+blank titles**, 633 sellers scored, 1,848 listing-level flags, 26 land areas.
+CRSP age-banding live on the fresh snapshot (n=2,895): asking runs 36–63% of
+KRA-depreciated new value in the 3–11y bands. Round-2 history drain (9,659
+urls, 19,318 captures) dispatched to fleet.
 
 ## Time-history depth (2026-10-13: reservoir tapped)
 
