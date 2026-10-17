@@ -64,13 +64,35 @@ jobs:
 
           $db = Join-Path $env:JIJI_DATA_DIR 'jiji.db'
 
-          if (-not (Test-Path $db)) { throw "Expected persistent database not found: $db" }
+                    $script = Join-Path $env:JIJI_SCRIPT_DIR 'jiji_incremental.py'
+          
+          $slugs = Join-Path $env:JIJI_SCRIPT_DIR 'category_slugs.txt'
+          
+          # Preflight: name every missing local artifact so the fix is one read away.
+          # 2026-10-17 failure: jiji.db missing on the home machine (folder moved or
+          # renamed). The DB is NOT in the repo; restore the path on the runner or
+          # update JIJI_DATA_DIR / JIJI_SCRIPT_DIR in this workflow to the new location.
+          $missing = @()
+          
+          if (-not (Test-Path $db)) { $missing += "database (not recoverable from CI): $db" }
+          
+          if (-not (Test-Path $script)) { $missing += "collector script: $script" }
+          
+          if (-not (Test-Path $slugs)) { $missing += "category slugs: $slugs" }
+          
+          if ($missing.Count -gt 0) {
+          
+            Write-Host "::error::Home-runner local files missing. Restore them on the runner, or update JIJI_DATA_DIR / JIJI_SCRIPT_DIR in this workflow to the new location:"
+          
+            $missing | ForEach-Object { Write-Host "  - $_" }
+          
+            throw "Local environment incomplete: $($missing.Count) artifact(s) missing (see log above)."
+          
+          }
 
           $script = Join-Path $env:JIJI_SCRIPT_DIR 'jiji_incremental.py'
 
           $slugs = Join-Path $env:JIJI_SCRIPT_DIR 'category_slugs.txt'
-
-          if (-not (Test-Path $script) -or -not (Test-Path $slugs)) { throw 'Expected local collector scripts are missing.' }
 
           $ok = $false
 
