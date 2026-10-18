@@ -120,13 +120,20 @@ jobs:
           # died_at marking (14d stale) + category/region backfill. Cheap, idempotent.
           # Runs weekly: day-of-year mod 7 gates it so daily runs skip in seconds.
           if ((Get-Date -UFormat '%j') % 7 -eq 0) {
-            python (Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py') --days 14
-            python (Join-Path $env:JIJI_SCRIPT_DIR 'listing_risk.py')
+            $quality = Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py'
+            $risk = Join-Path $env:JIJI_SCRIPT_DIR 'listing_risk.py'
+            if (Test-Path $quality) { python $quality --days 14 } else { Write-Warning "hygiene skipped: missing $quality" }
+            if (Test-Path $risk) { python $risk } else { Write-Warning "risk check skipped: missing $risk" }
           } else { Write-Host 'hygiene: not weekly slot, skipped' }
       - name: Mark dead listings and normalize
         shell: powershell
         run: |
-          python (Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py') --days 14
+          $quality = Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py'
+          if (Test-Path $quality) {
+            python $quality --days 14
+          } else {
+            Write-Warning "normalization skipped: missing $quality"
+          }
 
       - name: Package rolling data release
 
