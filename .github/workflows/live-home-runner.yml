@@ -31,6 +31,9 @@ concurrency:
 jobs:
 
   collect-and-publish:
+    defaults:
+      run:
+        shell: powershell -NoProfile -ExecutionPolicy Bypass {0}
 
     # This label deliberately keeps live Jiji traffic on the owner's home machine.
 
@@ -50,7 +53,7 @@ jobs:
 
       - name: Install collector dependencies
 
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
 
         run: python -m pip install --disable-pip-version-check blake3 duckdb
 
@@ -58,7 +61,7 @@ jobs:
 
       - name: Collect newest listings politely
 
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
 
         run: |
 
@@ -115,7 +118,7 @@ jobs:
 
 
       - name: Weekly data hygiene
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
         run: |
           # died_at marking (14d stale) + category/region backfill. Cheap, idempotent.
           # Runs weekly: day-of-year mod 7 gates it so daily runs skip in seconds.
@@ -126,7 +129,7 @@ jobs:
             if (Test-Path $risk) { python $risk } else { Write-Warning "risk check skipped: missing $risk" }
           } else { Write-Host 'hygiene: not weekly slot, skipped' }
       - name: Mark dead listings and normalize
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
         run: |
           $quality = Join-Path $env:JIJI_SCRIPT_DIR 'data_quality.py'
           if (Test-Path $quality) {
@@ -137,7 +140,7 @@ jobs:
 
       - name: Package rolling data release
 
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
 
         run: |
 
@@ -179,7 +182,7 @@ jobs:
 
       - name: Update rolling GitHub Release
 
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
 
         run: |
 
