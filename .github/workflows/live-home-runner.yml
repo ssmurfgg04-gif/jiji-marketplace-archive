@@ -187,15 +187,15 @@ jobs:
 
           $notes = "Daily home-runner live delta. Generated $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss K')."
 
-          cmd /c "gh release view live-latest --repo %GITHUB_REPOSITORY% >nul 2>nul"
+          cmd /c "C:\Users\Jackb\tools\gh\gh.exe release view live-latest --repo %GITHUB_REPOSITORY% >nul 2>nul"
 
           $releaseExists = ($LASTEXITCODE -eq 0)
 
           if (-not $releaseExists) {
 
-            gh release create live-latest --repo $env:GITHUB_REPOSITORY --title 'Live dataset (rolling)' --notes $notes --prerelease
+            C:\Users\Jackb\tools\gh\gh.exe release create live-latest --repo $env:GITHUB_REPOSITORY --title 'Live dataset (rolling)' --notes $notes --prerelease
 
           }
 
-          gh release upload live-latest (Join-Path $stage 'jiji.db.zip') (Join-Path $stage 'jiji-live-latest.parquet') (Join-Path $stage 'SHA256SUMS') --clobber --repo $env:GITHUB_REPOSITORY
+          C:\Users\Jackb\tools\gh\gh.exe release upload live-latest (Join-Path $stage 'jiji.db.zip') (Join-Path $stage 'jiji-live-latest.parquet') (Join-Path $stage 'SHA256SUMS') --clobber --repo $env:GITHUB_REPOSITORY
 
