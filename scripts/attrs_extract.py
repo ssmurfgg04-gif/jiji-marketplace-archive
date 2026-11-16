@@ -7,10 +7,11 @@ engine_cc ('1500cc', '1.5L', '1500 cc'). Land/houses: land_unit
 Additive columns on listings (mileage_km, engine_cc, land_unit). Idempotent:
 only fills NULL/empty cells. Run: python scripts/attrs_extract.py
 """
+import os
 import re
 import sqlite3
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 
 KM = re.compile(r"(\d[\d,]*)\s*(?:km|kms|kilometres|kilometers)\b", re.I)

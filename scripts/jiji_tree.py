@@ -3,12 +3,13 @@
 Replaces HTML scraping: one call, complete tree with ids/parents/names.
 Output: data/category_tree.tsv (slug, id, parent_id, name, depth).
 """
+import os
 import json
 import urllib.request
 from datetime import datetime, timezone
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) jiji-snapshot/1.0"}
-OUT = "C:/Users/Jackb/Downloads/New folder (2)/data/category_tree.tsv"
+OUT = os.path.join(os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "category_tree.tsv")
 
 
 def fetch_tree():

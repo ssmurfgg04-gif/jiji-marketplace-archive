@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 import requests
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MANIFEST = BASE + "/cc_manifest/manifest.parquet"
 DB = BASE + "/data/jiji.db"
 CC = "https://data.commoncrawl.org/"

@@ -7,10 +7,11 @@ hidden-seller combo. Rerun anytime; idempotent.
 Usage: python scripts/listing_risk.py
 Writes: listing_risk(guid, price_ratio, views, seller_hidden, risk)
 """
+import os
 import sqlite3
 import statistics
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 
 

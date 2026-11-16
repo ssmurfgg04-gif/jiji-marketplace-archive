@@ -10,12 +10,13 @@
 Safe: additive column + whitespace-only updates. Idempotent.
 Usage: python scripts/data_quality.py [--days 14]
 """
+import os
 import argparse
 import re
 import sqlite3
 from datetime import datetime, timezone
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 
 

@@ -8,6 +8,7 @@ Usage:
 
 Polite: 1 worker, 2s delay. Writes description_full/date_created/views.
 """
+import os
 import argparse
 import json
 import sqlite3
@@ -16,7 +17,7 @@ import time
 import urllib.parse
 import urllib.request
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) jiji-research-enrich/1.0"}
 

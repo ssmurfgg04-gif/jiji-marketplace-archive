@@ -1,7 +1,8 @@
 """Merge worker rows_NN.tsv.gz artifacts into cc_rows.tsv, dedup by bodyhash."""
+import os
 import gzip, os, sys
 
-BASE = "C:\\Users\\Jackb\\Downloads\\New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ART_DIR = sys.argv[1] if len(sys.argv) > 1 else os.path.join(BASE, "cc_worker_rows")
 OUT = os.path.join(BASE, "cc_rows.tsv")
 FIELDNAMES = ["guid", "title", "price", "capture_ts", "source", "country", "bodyhash", "url", "category_name"]

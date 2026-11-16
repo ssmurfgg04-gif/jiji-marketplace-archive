@@ -16,11 +16,12 @@ watched_unsold_share, score). Rerun anytime; idempotent.
 
 Usage: python scripts/seller_risk.py [--min-listings 3]
 """
+import os
 import argparse
 import sqlite3
 import statistics
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 
 

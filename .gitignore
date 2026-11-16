@@ -13,3 +13,4 @@ data/
 .env
 __pycache__/
 *.log
+logs/

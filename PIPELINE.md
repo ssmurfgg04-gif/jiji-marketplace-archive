@@ -331,3 +331,22 @@ item urls (category pages excluded — they carry no prices).
   fingerprints if gated, `sort=new` + sitemap diff (deltas, never full sweeps),
   Jiji `robots.txt` allows listings/categories/sellers (re-check ToS before
   commercializing; price facts = research posture, don't republish photos/text).
+
+## Linux local runner (2026-11-16 — replaces the Windows `jiji-home` machine)
+
+The self-hosted Windows runner was decommissioned (machine given away); the
+scheduled workflows that referenced it were removed in the same change.
+Linux equivalents run on this machine via systemd user timers:
+
+- `~/.local/bin/jiji-live-daily.sh` — daily 09:00 EAT (`jiji-live-daily.timer`):
+  polite collector (`jiji_incremental.py`, same args as the old workflow),
+  weekly hygiene slot, SQLite backup → `jiji.db.zip`, `snapshot-*.parquet` →
+  `jiji-live-latest.parquet`, `SHA256SUMS`. Publishes to the rolling
+  `live-latest` release **only if** `JIJI_RELEASE_TOKEN` is set (see
+  `~/.config/jiji-release.env`); otherwise it stops after packaging and logs it.
+- `~/.local/bin/jiji-fraud-watch.sh` — Mondays 10:00 EAT (`jiji-fraud-watch.timer`).
+
+Logs: `logs/` in this repo (gitignored). `data/jiji.db` is not committed; it was
+restored from the `live-latest` release on 2026-11-16 (last capture 2026-11-13).
+All scripts take `JIJI_ROOT` (default: the repo root) instead of the old
+absolute `C:\Users\Jackb\...` paths.

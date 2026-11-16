@@ -10,12 +10,13 @@ Intended as a scheduled query — run daily, alert on new guids.
 
 Usage: python scripts/fraud_watch.py [--views 50] [--ratio 0.4]
 """
+import os
 import argparse
 import sqlite3
 import statistics
 from datetime import datetime, timezone
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 
 

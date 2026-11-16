@@ -11,7 +11,7 @@ import glob
 import os
 import sqlite3
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PARTS = BASE + "/data/warc_parts"
 DB = BASE + "/data/jiji.db"
 

@@ -12,11 +12,12 @@ AxB in feet (-> sqm), direct sqm. Unsized per-plot rows assume 50x100
 Writes listings.price_per_sqm, location_key (+ area stats table land_areas).
 Rerunnable; idempotent. Usage: python scripts/land_price.py
 """
+import os
 import re
 import sqlite3
 import statistics
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 SQM_PER_ACRE = 4046.86
 SQM_PER_SQFT = 0.092903

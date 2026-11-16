@@ -12,11 +12,12 @@ Usage:
   python scripts/fuzz.py "laptop" --max-price 6000 --limit 20
   python scripts/fuzz.py "dell latitude" --min-score 65
 """
+import os
 import argparse
 import sqlite3
 import sys
 
-BASE = "C:/Users/Jackb/Downloads/New folder (2)"
+BASE = os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = BASE + "/data/jiji.db"
 
 FTS_SCHEMA = """

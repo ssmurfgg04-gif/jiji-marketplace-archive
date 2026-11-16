@@ -1,4 +1,5 @@
 """Normalized product identity: brand + model family canonicalization."""
+import os
 import io
 import re
 import sqlite3
@@ -57,7 +58,7 @@ def normalize(title):
 
 
 if __name__ == "__main__":
-    db = sqlite3.connect("C:/Users/Jackb/Downloads/New folder (2)/data/jiji.db",
+    db = sqlite3.connect(os.path.join(os.environ.get("JIJI_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "jiji.db"),
                          timeout=120, isolation_level=None)
     db.execute("PRAGMA journal_mode=WAL;")
     db.execute("PRAGMA busy_timeout=120000;")
