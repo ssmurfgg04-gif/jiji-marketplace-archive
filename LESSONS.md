@@ -126,3 +126,25 @@ Side ZIP (CPU-confirmed NOT these):
 ---
 
 Last verified: 2026-11-17 15:45 EAT. Contributors: opencode/jiji-archive learning sessions.
+
+## 4) Lesson from trying to find "urgent/distressed" laptops (2026-11-17)
+
+- **"Urgent" in Jiji's descriptions is mostly not a distress signal.** Total: 140K rows in archive queried (`urgent`/`distress`/`clearance`/`must go`/`bankrupt`/`vacate sale`). Hits: ~78. Desktop hits overwhelmingly on jobs (Nail Tech Urgently, Loctician, Lady Barber), real estate (Dom distress -1.5M-8M), general services.
+- Laptop name+description queries (`urgent`/`distress` + laptop) — ALL were genuine-quality matches with labels like "urgent buyer" in comments — OR job-type hits. **Zero laptop description containing urgent/distress price low enough to be a wink-wink deal.**
+- **Confirmed: laptops from Jiji are priced near the street market equilibrium**; the "30% below median 31,999" filter found only **zero genuine i7/i5 8th-gen units with functional batteries**. All sub-15K i7 listed laptops are (a) used, (b) slower gen, (c) SSHD (not SSD).
+- The true buying tiers, measured from the archive:
+   - **KSh 10-15K**: 8460P G2/8 **8th-gen i5**, X260/X270, Latitude E7250 i5 — workable + your call if use case is browsing only
+   - **KSh 15-20K**: Surface Go 2, Macbook Air 2020 M1 @ 15K (when i7 not listed), EliteBook 840 G1 i5/8 (15K), X390 (18,500)
+   - **KSh 20-25K**: T480s 24K (remounted), T490s i5 22K, Latitude 7390 i5 (multiple), X390 Yoga (18.5K)
+- **What's not a deal**: anything "perfect battery backlite keyboard 256GB at 20k+" = going-rate pricing; anything hyped as "9250 backlight" = normal Premium.
+- **What the archive can help the buyer judge**: one model seeker per SKU — e.g. search `query='X390'` and see histogram; the search-table `query` column is indexed to capture every live 8-day listing.
+
+## 5) Lesson from the T480 Euro-version buy (participant-research, 2026-11-18)
+
+- Sold by VC online in Zimmermann (perfect/conditioned/exact location implied distress-level urgency but no explicit "urgent" text. Description quote:
+  - "backlit keyboard led keyboard, military ... 35w battery)) :" — loosely pasted content
+  - keyboard keys were 5,6 and one or two off others.
+- The system ran
+  - as-is (Crusty-paid 13,000) but inside: every aspect original, 2 batteries in the box
+  - full normal operation once cleared of sleep option and with external keyboard
+- **"Zimmerman T480 narrow rear-pin Windows 11 flash" = deeply discounted but workable for 13K**.
